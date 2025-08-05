@@ -1,0 +1,49 @@
+from flask import Flask, request, render_template, jsonify
+import os
+import datetime
+
+app = Flask(__name__)
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+@app.route("/apply", methods=["POST"])
+def apply():
+    name = request.form.get("name")
+    email = request.form.get("email")
+    interest = request.form.get("interest")
+    resume = request.files.get("resume")
+
+    timestamp = datetime.datetime.utcnow().isoformat() + "Z"
+
+    if resume and resume.filename.endswith(".pdf"):
+        uploads_dir = os.path.join(os.getcwd(), "uploads")
+        os.makedirs(uploads_dir, exist_ok=True)
+        resume_path = os.path.join(uploads_dir, resume.filename)
+        resume.save(resume_path)
+
+        log_entry = f"[{timestamp}] {name} ({email}) - {interest}\n"
+        with open("application_log.txt", "a") as f:
+            f.write(log_entry)
+
+        return jsonify({
+            "message": "Application submitted successfully!",
+            "timestamp_utc": timestamp
+        })
+
+    else:
+        return jsonify({"error": "Invalid file type. Only PDF accepted."}), 400
+
+@app.route("/ping", methods=["GET"])
+def ping():
+    now = datetime.datetime.utcnow().isoformat() + "Z"
+    return jsonify({
+        "message": "Server is running",
+        "timestamp_utc": now
+    })
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
+
